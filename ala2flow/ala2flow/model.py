@@ -201,7 +201,7 @@ class Ala2Generator(pl.LightningModule):
         
         shape_info = ShapeDictionary.from_coordinate_transform(coordinate_transform)
 
-        if transformer_type == "affine":
+        if transformer_type is bg.AffineTransformer:
             # can't use periodicity
             TORSIONS = bg.TensorInfo("TORSIONS", is_circular=False)
             shape_info[TORSIONS] = shape_info[bg.TORSIONS]
@@ -248,7 +248,7 @@ class Ala2Generator(pl.LightningModule):
             builder.add_condition(ANGLES, on=(TORSIONS))
             builder.add_condition(BONDS, on=(ANGLES, TORSIONS))
 
-        if transformer_type == "affine":
+        if transformer_type is bg.AffineTransformer:
             sigmoid = bg.TorchTransform(torch.distributions.SigmoidTransform(), 1)
             for ic in [BONDS, ANGLES, TORSIONS]:
                 builder.add_layer(sigmoid, [ic])
@@ -274,7 +274,7 @@ class Ala2Generator(pl.LightningModule):
             builder.add_map_to_ic_domains(marginals)
         else:
             builder.add_map_to_ic_domains()
-        builder.add_map_to_cartesian(coordinate_transform)
+        builder.add_map_to_cartesian(coordinate_transform, torsions=TORSIONS)
 
         return builder.build_generator()        
         
