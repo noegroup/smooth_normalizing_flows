@@ -3,10 +3,10 @@ import torch
 import pytorch_lightning as pl
 
 import bgflow as bg
-from bgflow.factory import (
+from bgflow import (
     BoltzmannGeneratorBuilder,
     InternalCoordinateMarginals,
-    BONDS, ANGLES, TORSIONS, FIXED, ShapeInfo,
+    BONDS, ANGLES, FIXED, ShapeDictionary,
     LinLogCutEnergy
 )
 from .data import Ala2Data
@@ -85,7 +85,7 @@ class Ala2Generator(pl.LightningModule):
         parser.add_argument("--siren_initialize", dest="siren_initialize", action="store_true")
         parser.add_argument("--no-siren_initialize", dest="siren_initialize", action="store_false")
         parser.set_defaults(siren_initialize=False)
-        parser.add_argument("--transformer-type", default="spline", choices=["spline", "mixture"])
+        parser.add_argument("--transformer-type", default="spline", choices=["spline", "mixture", "affine"])
         parser.add_argument("--activation-type", default="silu", choices=["silu", "sin"])
         parser.add_argument("--hidden", type=int, default=(64, 64), nargs='*')
         parser.add_argument("--n-torsion-blocks", type=int, default=2)
@@ -190,7 +190,8 @@ class Ala2Generator(pl.LightningModule):
         # parse data
         transformer_type = {
             "spline": bg.ConditionalSplineTransformer, 
-            "mixture": bg.MixtureCDFTransformer
+            "mixture": bg.MixtureCDFTransformer,
+            "affine": bg.AffineTransformer
         }[transformer_type]
         activation = {"silu": torch.nn.SiLU(), "sin": bg.nn.dense.Sin()}[activation_type]
         hidden = hidden
@@ -198,17 +199,29 @@ class Ala2Generator(pl.LightningModule):
         coordinate_transform, target_energy = self._build_trafo_from_data(z_id)
         target_energy = LinLogCutEnergy(target_energy, high_energy=high_energy)
         
-        shape_info = ShapeInfo.from_coordinate_transform(coordinate_transform)
+        shape_info = ShapeDictionary.from_coordinate_transform(coordinate_transform)
+
+        if transformer_type == "affine":
+            # can't use periodicity
+            # TORSION FLOW
+            TORSIONS = bg.TensorInfo("TORSIONS", is_circular=False)
+            shape_info[TORSIONS] = shape_info[bg.TORSIONS]
+            del shape_info[bg.TORSIONS]
+        else:
+            TORSIONS = bg.TORSIONS
+
         builder = BoltzmannGeneratorBuilder(shape_info, target_energy, **ctx)
-        builder.DEFAULT_TRANSFORMER_TYPE = transformer_type
-        builder.DEFAULT_TRANSFORMER_KWARGS = {"inverse": use_inverse_transformer}
-        builder.DEFAULT_CONDITIONER_KWARGS = {
+        builder.default_transformer_type = transformer_type
+        builder.default_transformer_kwargs = {"inverse": use_inverse_transformer}
+        builder.default_conditioner_kwargs = {
             "hidden": hidden,
             "activation": activation,
         }
         if activation_type == "sin":
-            builder.DEFAULT_CONDITIONER_KWARGS["siren_scale_first_weights"] = siren_scale_first_weights,
-            builder.DEFAULT_CONDITIONER_KWARGS["siren_initialize"] = siren_initialize
+            builder.default_conditioner_kwargs["siren_scale_first_weights"] = siren_scale_first_weights,
+            builder.default_conditioner_kwargs["siren_initialize"] = siren_initialize
+        if transformer_type == "affine":
+            builder.default_prior_type = bg.NormalDistribution
 
         if isinstance(coordinate_transform, bg.MixedCoordinateTransformation):
             for i in range(n_torsion_blocks):
@@ -220,8 +233,6 @@ class Ala2Generator(pl.LightningModule):
             builder.add_condition(ANGLES, on=(TORSIONS, FIXED))
             builder.add_condition(BONDS, on=(ANGLES, TORSIONS, FIXED))
         else:
-            #del shape_info[ORIGIN]
-            #del shape_info[ROTATION]
             n_torsions = builder.current_dims[TORSIONS][-1]
             TORSIONS1, TORSIONS2 = builder.add_split(
                 TORSIONS, 
@@ -237,7 +248,12 @@ class Ala2Generator(pl.LightningModule):
                 builder.add_condition(ANGLES, on=BONDS)
             builder.add_condition(ANGLES, on=(TORSIONS))
             builder.add_condition(BONDS, on=(ANGLES, TORSIONS))
-            
+
+        if transformer_type == "affine":
+            sigmoid = bg.TorchTransform(torch.distributions.SigmoidTransform(), 1)
+            for ic in [BONDS, ANGLES, TORSIONS]:
+                builder.add_layer(sigmoid, [ic])
+
         if use_informed_marginals:
             marginals = InternalCoordinateMarginals(builder.current_dims, builder.ctx)
             marginals[BONDS] = bg.SloppyUniform(
