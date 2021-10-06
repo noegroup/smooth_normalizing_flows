@@ -36,7 +36,8 @@ class Ala2Data(pl.LightningDataModule):
     
     @staticmethod
     def read_dataset():
-        return AImplicitUnconstrained(read=True)
+        data_is_here = os.path.isdir("AImplicitUnconstrained")
+        return AImplicitUnconstrained(download=not data_is_here, read=True)
 
     def prepare_data(self):
         Ala2Data.read_dataset()

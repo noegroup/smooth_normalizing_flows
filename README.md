@@ -1,15 +1,29 @@
 
 # Smooth Normalizing Flows
 
+Source code for
 
-## Install
--  Download data (follow instructions in ./bgmol/bgmol/data/README.md).
+J. Köhler, A. Krämer, and F. Noé.  Smooth Normalizing Flows.  arXiv preprint [arXiv:2110.00351](https://arxiv.org/abs/2110.00351).
+
+
+## Installation
 - `conda env create -f condaenv.yml`
 - `conda activate smooth_normalizing_flows`
 - `pip install nflows`
-- `cd bgflow && python setup.py install && cd -`
-- `cd bgmol  && python setup.py install && cd -`
-- `cd bgforces  && python setup.py install && cd -`
+- Download and install [bgflow](https://github.com/noegroup/bgflow)
+    - ```
+      git clone git@github.com:noegroup/bgflow.git
+      cd bgflow
+      git checkout factory-compact-interval
+      python setup.py install
+      ```
+- Download and install [bgmol](https://github.com/noegroup/bgmol) (same as above)
+    - ```
+      git clone git@github.com:noegroup/bgmol.git
+      cd bgmol
+      python setup.py install
+      ```
+- Install the alanine dipeptide model `cd ala2flow  && python setup.py install && cd -`
 
 
 ## Experiments
