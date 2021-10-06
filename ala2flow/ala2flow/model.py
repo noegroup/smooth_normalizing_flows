@@ -203,7 +203,6 @@ class Ala2Generator(pl.LightningModule):
 
         if transformer_type == "affine":
             # can't use periodicity
-            # TORSION FLOW
             TORSIONS = bg.TensorInfo("TORSIONS", is_circular=False)
             shape_info[TORSIONS] = shape_info[bg.TORSIONS]
             del shape_info[bg.TORSIONS]

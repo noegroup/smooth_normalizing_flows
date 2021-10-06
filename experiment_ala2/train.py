@@ -12,7 +12,7 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from bgforces.ala2 import Ala2Data, Ala2Generator
+from ala2flow import Ala2Data, Ala2Generator
 
 
 def main():

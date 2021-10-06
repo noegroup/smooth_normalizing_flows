@@ -2,9 +2,7 @@
 from setuptools import setup, find_packages
 
 
-
-
 setup(
-    name="bgforces",
+    name="ala2flow",
     packages=find_packages(),
 )
