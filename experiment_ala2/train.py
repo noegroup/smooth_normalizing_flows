@@ -64,7 +64,13 @@ def main():
         u_model=model_energies
     )
     print("Best model:", trainer.checkpoint_callback.best_model_path)
-    import sys; sys.exit(0)
+    import sys, traceback, threading
+    thread_names = {t.ident: t.name for t in threading.enumerate()}
+    for thread_id, frame in sys._current_frames().iteritems():
+            print("Thread %s:" % thread_names.get(thread_id, thread_id))
+            traceback.print_stack(frame)
+            print()
+
 
 
 if __name__ == "__main__":

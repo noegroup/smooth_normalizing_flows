@@ -98,9 +98,9 @@ class Simulation:
         self.report_interval = report_interval
         self.energies = []
    
-    def step(self, n_steps):
+    def step(self, n_steps, progress_bar=lambda x: x):
         with torch.no_grad():
-            for i in range(n_steps):
+            for i in progress_bar(range(n_steps)):
                 self.i += 1
                 self.x, self.v = self.integrator(self.x, self.v)
                 if self.i % self.report_interval == 0:
